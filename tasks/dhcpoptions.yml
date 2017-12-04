@@ -1,0 +1,15 @@
+---
+- name: Create DHCP Option Set
+  ec2_vpc_dhcp_option:
+    state:            "present"
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    dns_servers:
+    - "AmazonProvidedDNS"
+    domain_name:      "{{ aws_vpc_dns_domain }}"
+    region:           "{{ aws_vpc_aws_region }}"
+    vpc_id:           "{{ vpc_id }}"
+    tags:
+      Name:           "dopt_{{ aws_vpc_tag_project }}"
+      Project:        "{{ aws_vpc_tag_project }}"
+  check_mode: False # module does not work in check mode

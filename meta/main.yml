@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Dean Harris
+  description: This role allows you to create VPCs in Amazon Web Services (AWS) following a number of different design patterns. It supports combinations of single or multi AZ, single or multi subnet.
+  company: Level 27 Technology Ltd
+  license: GPLv3
+  min_ansible_version: 2.4
+  github_branch: master
+  platforms:
+  - name: Amazon
+    versions:
+    - 2016.09
+  galaxy_tags:
+  - aws
+  - vpc
+  - amazon
+dependencies: []

@@ -1,0 +1,133 @@
+---
+# tasks file for l27t.aws_vpc
+
+- name:               Create Private Subnet
+  ec2_vpc_subnet:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    az:               "{{ aws_vpc_availability_zone }}"
+    cidr:             "{{ aws_vpc_subnet_cidr }}"
+    region:           "{{ aws_vpc_aws_region }}"
+    state:            "present"
+    tags:
+      Name:           "{{ aws_vpc_subnet_name }}"
+      Project:        "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  register: my_private_subnet
+
+#- set_fact:
+#    private_subnet_az1_id: "{{ my_private_subnet.subnet.id }}"
+
+- name: Create NAT Gateway
+  ec2_vpc_nat_gateway:
+    aws_access_key:         "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:         "{{ aws_vpc_aws_secret_key }}"
+    if_exist_do_not_create: True
+    region:                 "{{ aws_vpc_aws_region }}"
+    state:                  "present"
+    subnet_id:              "{{ my_public_subnet.subnet.id }}"
+    wait:                   True
+  register: my_nat_gateway
+  when: my_public_subnet.subnet.id is defined
+
+- name: Add tags to NAT Gateway
+  ec2_tag:
+    aws_access_key:         "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:         "{{ aws_vpc_aws_secret_key }}"
+    region:                 "{{ aws_vpc_aws_region }}"
+    resource: "{{ my_nat_gateway.nat_gateway_id }}"
+    state:                  "present"
+    tags:
+      Name:           "{{ aws_vpc_nat_name }}"
+      Project:        "{{ aws_vpc_tag_project }}"
+  when: my_nat_gateway.nat_gateway_id is defined
+  
+# Now set up the routing tables
+
+- name: Add routing table for private subnet
+  ec2_vpc_route_table:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    region:           "{{ aws_vpc_aws_region }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ my_nat_gateway.nat_gateway_id }}"
+    state:            "present"
+    subnets:
+      - "{{ my_private_subnet.subnet.id }}"
+    tags:
+      Name:    "{{ aws_vpc_rtb_name }}"
+      Project: "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  when: my_nat_gateway.nat_gateway_id is defined and
+        my_private_subnet.subnet.id is defined
+
+# Now the security groups
+# Security groups are associated with instances and resources and acts
+# like a firewall between them.
+# Best practice is to have a security group for each type of access.
+
+- name: Create security group for SSH access for private instances
+  ec2_group:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    description:      "Private Instances access via SSH"
+    name:             "sg_private_secure_shell"
+    state:            "present"
+    region:           "{{ aws_vpc_aws_region }}"
+    rules:
+      - proto: "tcp"
+        from_port: "22"
+        to_port: "22"
+        group_id: "{{ main_ssh_sg_id }}"
+    tags:
+      Name: "sg_private_secure_shell"
+      Project: "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  when: main_ssh_sg_id is defined
+  check_mode: False # module does not work in check mode
+
+- name: Check for existing ACLs
+  ec2_vpc_nacl_facts:
+    region:           "{{ aws_vpc_aws_region }}"
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    filters:
+      "tag:Name": "acl_private"
+  register: private_acl
+
+- name: Store existing ACL subnets as fact
+  set_fact:
+    existing_subnets: "{{ private_acl.nacls.0.subnets }}"
+  when: private_acl.nacls is defined and private_acl.nacls|length > 0
+
+- name: set ACL rule facts
+  set_fact: 
+    acl_ingress: 
+    - [100,'tcp','allow','{{ aws_vpc_public_subnet_1_cidr }}',null,null,22,22]
+    acl_egress: 
+    - [100,'tcp','allow','{{ aws_vpc_public_subnet_1_cidr }}',null,null,0,65535]
+
+- name: Set ACL rule facts for multi-AZ
+  set_fact: 
+    acl_ingress: "{{ acl_ingress }} +
+    [[110,'tcp','allow','{{ aws_vpc_public_subnet_2_cidr }}',null,null,22,22]]"
+    acl_egress: "{{ acl_egress }} +
+    [[110,'tcp','allow','{{ aws_vpc_public_subnet_2_cidr }}',null,null,0,65535]]"
+  when: aws_vpc_multi_az == True
+
+- name: Create Network ACL for the private tier
+  ec2_vpc_nacl:
+    region:           "{{ aws_vpc_aws_region }}"
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    state:            "present"
+    vpc_id:           "{{ vpc_id }}"
+    name:             "acl_private"
+    subnets: "{{ existing_subnets | default([]) }} + ['{{ my_private_subnet.subnet.id }}']"
+   # rule no, proto, allow/deny, cidr, icmp_code, icmp_type, port from, port to
+    ingress: "{{ acl_ingress }}"
+    egress: "{{ acl_egress }}"
+    tags:
+      Project: "{{ aws_vpc_tag_project }}"
+

@@ -1,0 +1,53 @@
+---
+- name: VPC
+  include_tasks: "vpc.yml"
+
+- name: DNS ZONE
+  include_tasks: "dnszone.yml"
+  when: vpc_id is defined and 
+        aws_vpc_create_dns_zone == True
+
+- name: DHCP OPTIONS
+  include_tasks: "dhcpoptions.yml"
+  when: vpc_id is defined and
+        aws_vpc_create_dns_zone == True
+
+- name: PUBLIC SUBNET [AZ-1]
+  vars:
+    aws_vpc_availability_zone: "{{ aws_vpc_aws_region }}a"
+    aws_vpc_subnet_name: "{{ aws_vpc_public_subnet_1_name }}"
+    aws_vpc_subnet_cidr: "{{ aws_vpc_public_subnet_1_cidr }}"
+  include_tasks: "public.yml"
+  when: vpc_id is defined
+
+- name: PRIVATE SUBNET [AZ-1]
+  vars:
+    aws_vpc_availability_zone: "{{ aws_vpc_aws_region }}a"
+    aws_vpc_subnet_name: "{{ aws_vpc_private_subnet_1_name }}"
+    aws_vpc_subnet_cidr: "{{ aws_vpc_private_subnet_1_cidr }}"
+    aws_vpc_rtb_name: "rtb_private_a"
+    aws_vpc_nat_name: "nat_gateway_a"
+  include_tasks: "private.yml"
+  when: vpc_id is defined and
+        aws_vpc_include_private == True
+
+- name: PUBLIC SUBNET [AZ-2]
+  vars:
+    aws_vpc_availability_zone: "{{ aws_vpc_aws_region }}b"
+    aws_vpc_subnet_name: "{{ aws_vpc_public_subnet_2_name }}"
+    aws_vpc_subnet_cidr: "{{ aws_vpc_public_subnet_2_cidr }}"
+  include_tasks: "public.yml"
+  when: vpc_id is defined and
+        aws_vpc_multi_az == True
+
+- name: PRIVATE SUBNET [AZ-2]
+  vars:
+    aws_vpc_availability_zone: "{{ aws_vpc_aws_region }}b"
+    aws_vpc_subnet_name: "{{ aws_vpc_private_subnet_2_name }}"
+    aws_vpc_subnet_cidr: "{{ aws_vpc_private_subnet_2_cidr }}"
+    aws_vpc_rtb_name: "rtb_private_b"
+    aws_vpc_nat_name: "nat_gateway_b"
+  include_tasks: "private.yml"
+  when: vpc_id is defined and
+        aws_vpc_include_private == True and
+        aws_vpc_multi_az == True

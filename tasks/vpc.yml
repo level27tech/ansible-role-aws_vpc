@@ -1,0 +1,23 @@
+---
+# tasks file for l27t.aws_vpc
+
+
+# First task : creating the VPC.
+
+- name:               Create VPC
+  ec2_vpc_net:
+    name:             "{{ aws_vpc_vpc_name }}"
+    cidr_block:       "{{ aws_vpc_vpc_cidr_block }}"
+    region:           "{{ aws_vpc_aws_region }}"
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    state:            "present"
+    tags:
+      Project: "{{ aws_vpc_tag_project }}"
+  register: my_vpc
+
+- name:               Set VPC ID in variable
+  set_fact:
+    vpc_id:           "{{ my_vpc.vpc.id }}"
+  when: my_vpc.vpc is defined
+

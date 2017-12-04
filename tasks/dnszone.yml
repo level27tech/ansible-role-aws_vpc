@@ -1,0 +1,11 @@
+---
+- name: Ensure DNS hosted zone exists and for this VPC
+  route53_zone:
+    aws_access_key: "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key: "{{ aws_vpc_aws_secret_key }}"
+    region: "{{ aws_vpc_aws_region }}"
+    state: present
+    vpc_region: "{{ aws_vpc_aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    zone: "{{ aws_vpc_dns_domain }}"
+  when: aws_vpc_create_dns_zone == True and aws_vpc_dns_domain

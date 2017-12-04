@@ -1,0 +1,126 @@
+---
+# tasks file for l27t.aws_vpc
+
+- name:               Create Public Subnet
+  ec2_vpc_subnet:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    az:               "{{ aws_vpc_availability_zone }}"
+    cidr:             "{{ aws_vpc_subnet_cidr }}"
+    map_public:       "True"
+    region:           "{{ aws_vpc_aws_region }}"
+    state:            "present"
+    tags:
+      Name:           "{{ aws_vpc_subnet_name }}"
+      Project:        "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  register: my_public_subnet
+
+- name:               Set Public Subnet ID in variable
+  set_fact:
+    public_subnet_id: "{{ my_public_subnet.subnet.id }}"
+  when: my_public_subnet.subnet.id is defined
+
+- name:               Create Internet Gateway for VPC
+  ec2_vpc_igw:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    region:           "{{ aws_vpc_aws_region }}"
+    state:            "present"
+    tags:
+      Name:           "igw_{{ aws_vpc_tag_project }}"
+      Project:        "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  register: my_vpc_igw
+
+- name:               Set Internet Gateway ID in variable
+  set_fact:
+    igw_id:           "{{ my_vpc_igw.gateway_id }}"
+  when: my_vpc_igw.gateway_id is defined
+
+# Now set up the routing tables
+
+# Firstly, create route from "public" subnets to the IGW.
+- name: Add public routing table with route to internet
+  ec2_vpc_route_table:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    purge_subnets:    False
+    region:           "{{ aws_vpc_aws_region }}"
+    state:            "present"
+    subnets:
+      - "{{ public_subnet_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_id }}"
+    tags:
+      Name:    "rtb_public"
+      Project: "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  when: public_subnet_id is defined and
+        igw_id is defined
+
+# Now the security groups
+# Security groups are associated with instances and resources and acts
+# like a firewall between them.
+- name: Create security group for external SSH access
+  ec2_group:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    description:      "External access via SSH"
+    name:             "sg_public_secure_shell"
+    state:            "present"
+    region:           "{{ aws_vpc_aws_region }}"
+    rules:
+      - proto: "tcp"
+        from_port: "22"
+        to_port: "22"
+        cidr_ip: "{{ aws_vpc_cidr_for_access }}"
+    tags:
+      Name: "sg_public_secure_shell"
+      Project: "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+  register: my_ssh_sg 
+
+- name: Set Main SG ID as a fact
+  set_fact:
+    main_ssh_sg_id: "{{ my_ssh_sg.group_id }}"
+  when: my_ssh_sg is defined
+
+# Finally Network ACLs
+- name: Check for existing ACLs
+  ec2_vpc_nacl_facts:
+    region:           "{{ aws_vpc_aws_region }}"
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    filters:
+      "tag:Name": "acl_public"
+  register: public_acl
+
+- debug: var=public_acl
+
+- name: Store existing ACL subnets as fact
+  set_fact:
+    existing_subnets: "{{ public_acl.nacls.0.subnets }}"
+  when: public_acl.nacls
+
+- name: Create Network ACL for the public tier
+  ec2_vpc_nacl:
+    region:           "{{ aws_vpc_aws_region }}"
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    state:            "present"
+    vpc_id:           "{{ vpc_id }}"
+    name:             "acl_public"
+    subnets: "{{ existing_subnets | default([]) }} + ['{{ my_public_subnet.subnet.id }}']"
+   # rule no, proto, allow/deny, cidr, icmp_code, icmp_type, port from, port to
+    ingress: 
+    - [100,'tcp','allow','{{ aws_vpc_cidr_for_access }}', null, null, 22, 22]
+    egress:
+    - [100,'tcp','allow','{{ aws_vpc_cidr_for_access }}', null, null, 0, 65535]
+    tags:
+      Project: "{{ aws_vpc_tag_project }}"
+
+
+
+
