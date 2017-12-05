@@ -47,32 +47,39 @@ Role Variables
 The role includes the following defaults:
 
 **AWS Credentials**
+
 *Note that these credentials should be kept private as they can be used to gain access to your AWS environment.
 It is recommended that these variables be encrypted with Ansible Vault.  See https://docs.ansible.com/ansible/2.4/ansible-vault.html for details.*
 aws_vpc_aws_access_key: "THISISMYAWSACCESSKEY"
 aws_vpc_aws_secret_key: "ThisIsMyAwSSecretKey"
 
 **AWS Region**
+
 aws_vpc_aws_region:     "eu-west-1"
 
 **Control Parameters**
+
 aws_vpc_include_private: False
 aws_vpc_multi_az: False
 aws_vpc_create_dns_zone: False
 aws_vpc_dns_domain: "example.com"
 
 **Security**
+
 *Note that this default should be overridden as it is used in the security groups intended for SSH access.*
 aws_vpc_cidr_for_access:          "1.2.3.4/32"
 
 **Tags**
+
 aws_vpc_tag_project: "My Project"
 
 **VPC Information**
+
 aws_vpc_vpc_name:       "MyVPC"
 aws_vpc_vpc_cidr_block: "10.0.0.0/21"
 
 **Subnets**
+
 aws_vpc_public_subnet_1_name:  "sub_public_a"
 aws_vpc_public_subnet_1_cidr:  "10.0.0.0/24"
 aws_vpc_private_subnet_1_name:  "sub_private_a"
