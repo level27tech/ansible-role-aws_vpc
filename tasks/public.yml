@@ -68,7 +68,7 @@
     aws_access_key:   "{{ aws_vpc_aws_access_key }}"
     aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
     description:      "External access via SSH"
-    name:             "sg_public_secure_shell"
+    name:             "sg_external_secure_shell"
     state:            "present"
     region:           "{{ aws_vpc_aws_region }}"
     rules:
@@ -77,7 +77,7 @@
         to_port: "22"
         cidr_ip: "{{ aws_vpc_cidr_for_access }}"
     tags:
-      Name: "sg_public_secure_shell"
+      Name: "sg_external_secure_shell"
       Project: "{{ aws_vpc_tag_project }}"
     vpc_id:           "{{ vpc_id }}"
   register: my_ssh_sg 
@@ -86,6 +86,24 @@
   set_fact:
     main_ssh_sg_id: "{{ my_ssh_sg.group_id }}"
   when: my_ssh_sg is defined
+
+- name: Create security group for SSH access
+  ec2_group:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    description:      "Access within subnet via SSH"
+    name:             "sg_{{ aws_vpc_subnet_name }}_secure_shell"
+    state:            "present"
+    region:           "{{ aws_vpc_aws_region }}"
+    rules:
+      - proto: "tcp"
+        from_port: "22"
+        to_port: "22"
+        cidr_ip: "{{ aws_vpc_subnet_cidr }}"
+    tags:
+      Name: "sg_{{ aws_vpc_subnet_name }}_secure_shell"
+      Project: "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
 
 # Finally Network ACLs
 - name: Check for existing ACLs

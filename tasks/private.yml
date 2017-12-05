@@ -87,6 +87,24 @@
   when: main_ssh_sg_id is defined
   check_mode: False # module does not work in check mode
 
+- name: Create security group for SSH access
+  ec2_group:
+    aws_access_key:   "{{ aws_vpc_aws_access_key }}"
+    aws_secret_key:   "{{ aws_vpc_aws_secret_key }}"
+    description:      "Access within subnet via SSH"
+    name:             "sg_{{ aws_vpc_subnet_name }}_secure_shell"
+    state:            "present"
+    region:           "{{ aws_vpc_aws_region }}"
+    rules:
+      - proto: "tcp"
+        from_port: "22"
+        to_port: "22"
+        cidr_ip: "{{ aws_vpc_subnet_cidr }}"
+    tags:
+      Name: "sg_{{ aws_vpc_subnet_name }}_secure_shell"
+      Project: "{{ aws_vpc_tag_project }}"
+    vpc_id:           "{{ vpc_id }}"
+
 - name: Check for existing ACLs
   ec2_vpc_nacl_facts:
     region:           "{{ aws_vpc_aws_region }}"
