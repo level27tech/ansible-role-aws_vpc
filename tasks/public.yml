@@ -115,36 +115,30 @@
       "tag:Name": "acl_public"
   register: public_acl
 
-- debug: var=public_acl
-
 - name: Store existing ACL subnets as fact
   set_fact:
     existing_subnets: "{{ public_acl.nacls.0.subnets }}"
+    existing_ingress: "{{ public_acl.nacls.0.ingress }}"
+    existing_egress: "{{ public_acl.nacls.0.egress }}"
   when: public_acl.nacls
+
+- name: Set fact for public rules 
+  set_fact:
+    ingress_rules: "{{ ingress_rules | default([]) }} + {{ aws_vpc_public_acl_public_subnet_ingress_rule }}"
+    egress_rules: "{{ egress_rules | default([]) }} + {{ aws_vpc_public_acl_public_subnet_egress_rule }}"
 
 - name: Set facts for private subnet 1 rules
   set_fact:
-    private_subnet_1_ingress_rule:
-    - [110,'tcp','allow','{{ aws_vpc_private_subnet_1_cidr }}', null, null, 0, 65535]
-    private_subnet_1_egress_rule:
-    - [110,'tcp','allow','{{ aws_vpc_private_subnet_1_cidr }}', null, null, 22, 22]
+    ingress_rules: "{{ ingress_rules }} + {{ aws_vpc_public_acl_private_subnet_1_ingress_rule }}"
+    egress_rules: "{{ egress_rules }} + {{ aws_vpc_public_acl_private_subnet_1_egress_rule }}"
   when: aws_vpc_include_private == True
 
 - name: Set fact for private subnet 2 rules
   set_fact:
-    private_subnet_2_ingress_rule:
-    - [120,'tcp','allow','{{ aws_vpc_private_subnet_2_cidr }}', null, null, 0, 65535]
-    private_subnet_2_egress_rule:
-    - [120,'tcp','allow','{{ aws_vpc_private_subnet_2_cidr }}', null, null, 22, 22]
+    ingress_rules: "{{ ingress_rules }} + {{ aws_vpc_public_acl_private_subnet_2_ingress_rule }}"
+    egress_rules: "{{ egress_rules }} + {{ aws_vpc_public_acl_private_subnet_2_egress_rule }}"
   when: aws_vpc_include_private == True and
         aws_vpc_multi_az == True
-
-- name: Set fact for public rules 
-  set_fact:
-    public_subnet_ingress_rule:
-    - [100,'tcp','allow','{{ aws_vpc_cidr_for_access }}', null, null, 22, 22]
-    public_subnet_egress_rule:
-    - [100,'tcp','allow','{{ aws_vpc_cidr_for_access }}', null, null, 0, 65535]
 
 - name: Create Network ACL for the public tier
   ec2_vpc_nacl:
@@ -156,12 +150,10 @@
     name:             "acl_public"
     subnets: "{{ existing_subnets | default([]) }} + ['{{ my_public_subnet.subnet.id }}']"
    # rule no, proto, allow/deny, cidr, icmp_code, icmp_type, port from, port to
-    ingress: "{{ public_subnet_ingress_rule | default ([]) }} +
-              {{ private_subnet_1_ingress_rule | default([]) }} +
-              {{ private_subnet_2_ingress_rule | default([]) }}"
-    egress: "{{ public_subnet_egress_rule | default ([]) }} +
-              {{ private_subnet_1_egress_rule | default([]) }} +
-              {{ private_subnet_2_egress_rule | default([]) }}"
+    ingress: "{{ existing_ingress | default([]) }} + 
+              {{ ingress_rules | default ([]) }}"
+    egress:  "{{ existing_egress | default([]) }} + 
+              {{ egress_rules | default ([]) }}"
     tags:
       Project: "{{ aws_vpc_tag_project }}"
 

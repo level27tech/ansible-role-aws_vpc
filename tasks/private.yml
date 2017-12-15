@@ -121,17 +121,13 @@
 
 - name: set ACL rule facts
   set_fact: 
-    acl_ingress: 
-    - [100,'tcp','allow','{{ aws_vpc_public_subnet_1_cidr }}',null,null,22,22]
-    acl_egress: 
-    - [100,'tcp','allow','{{ aws_vpc_public_subnet_1_cidr }}',null,null,0,65535]
+    acl_ingress: "{{ aws_vpc_private_acl_subnet_1_ingress_rule }}"
+    acl_egress: "{{ aws_vpc_private_acl_subnet_1_egress_rule }}"
 
 - name: Set ACL rule facts for multi-AZ
   set_fact: 
-    acl_ingress: "{{ acl_ingress }} +
-    [[110,'tcp','allow','{{ aws_vpc_public_subnet_2_cidr }}',null,null,22,22]]"
-    acl_egress: "{{ acl_egress }} +
-    [[110,'tcp','allow','{{ aws_vpc_public_subnet_2_cidr }}',null,null,0,65535]]"
+    acl_ingress: "{{ acl_ingress }} + {{ aws_vpc_private_acl_subnet_2_ingress_rule }}"
+    acl_egress: "{{ acl_egress }} + {{ aws_vpc_private_acl_subnet_2_egress_rule }}"
   when: aws_vpc_multi_az == True
 
 - name: Create Network ACL for the private tier

@@ -1,0 +1,42 @@
+---
+aws_vpc_public_acl_private_subnet_1_ingress_rule:
+  - [200,'tcp','allow','{{ aws_vpc_private_subnet_1_cidr }}', null, null, 80, 80]
+  - [210,'tcp','allow','{{ aws_vpc_private_subnet_1_cidr }}', null, null, 443, 443]
+
+aws_vpc_public_acl_private_subnet_1_egress_rule:
+  - [200,'tcp','allow','{{ aws_vpc_private_subnet_1_cidr }}', null, null, 1024, 65535]
+  - [210,'tcp','allow','{{ aws_vpc_private_subnet_1_cidr }}', null, null, 22, 22]
+
+aws_vpc_public_acl_private_subnet_2_ingress_rule:
+  - [300,'tcp','allow','{{ aws_vpc_private_subnet_2_cidr }}', null, null, 80, 80]
+  - [310,'tcp','allow','{{ aws_vpc_private_subnet_2_cidr }}', null, null, 443, 443]
+
+aws_vpc_public_acl_private_subnet_2_egress_rule:
+  - [300,'tcp','allow','{{ aws_vpc_private_subnet_2_cidr }}', null, null, 1024, 66535]
+  - [310,'tcp','allow','{{ aws_vpc_private_subnet_2_cidr }}', null, null, 22, 22]
+
+aws_vpc_public_acl_public_subnet_ingress_rule:
+  - [100,'tcp','allow','{{ aws_vpc_cidr_for_access }}', null, null, 22, 22]
+  - [110,'tcp','allow','0.0.0.0/0', null, null, 1024, 65535]
+
+aws_vpc_public_acl_public_subnet_egress_rule:
+  - [100,'tcp','allow','{{ aws_vpc_cidr_for_access }}', null, null, 1024, 65535]
+  - [110,'tcp','allow','0.0.0.0/0', null, null, 80, 80]
+  - [120,'tcp','allow','0.0.0.0/0', null, null, 443, 443]
+
+aws_vpc_private_acl_subnet_1_ingress_rule:
+  - [100,'tcp','allow','{{ aws_vpc_public_subnet_1_cidr }}',null,null,22,22]
+  - [110,'tcp','allow','0.0.0.0/0',null,null,1024,65535]
+aws_vpc_private_acl_subnet_1_egress_rule:
+  - [100,'tcp','allow','{{ aws_vpc_public_subnet_1_cidr }}',null,null,1024,65535]
+  - [110,'tcp','allow','0.0.0.0/0',null,null,80,80]
+  - [120,'tcp','allow','0.0.0.0/0',null,null,443,443]
+
+aws_vpc_private_acl_subnet_2_ingress_rule:
+  - [500,'tcp','allow','{{ aws_vpc_public_subnet_2_cidr }}',null,null,22,22]
+  - [510,'tcp','allow','0.0.0.0/0',null,null,1024,65535]
+aws_vpc_private_acl_subnet_2_egress_rule:
+  - [500,'tcp','allow','{{ aws_vpc_public_subnet_2_cidr }}',null,null,0,65535]
+  - [510,'tcp','allow','0.0.0.0/0',null,null,80,80]
+  - [520,'tcp','allow','0.0.0.0/0',null,null,443,443]
+
